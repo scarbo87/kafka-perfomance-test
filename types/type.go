@@ -11,6 +11,7 @@ type Producer interface {
 
 type SyncProducerConfig struct {
 	Duration       time.Duration
+	DurationSecond uint
 	BrokersAddress []string
 	ProducerType   string
 	Topic          string

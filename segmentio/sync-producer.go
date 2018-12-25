@@ -4,11 +4,14 @@ import (
 	"context"
 	"github.com/scarbo87/kafka-perfomance-test/types"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/gzip"
+	"github.com/segmentio/kafka-go/snappy"
 	"log"
 )
 
 type segmentioSyncProducer struct {
-	conn *kafka.Conn
+	conn             *kafka.Conn
+	compressionCodec kafka.CompressionCodec
 
 	totalCount uint64
 	errCount   uint64
@@ -24,15 +27,26 @@ func NewSegmentioSyncProducer(cfg *types.SyncProducerConfig) *segmentioSyncProdu
 		log.Panicln(err)
 	}
 
-	return &segmentioSyncProducer{
+	p := &segmentioSyncProducer{
 		conn: conn,
 	}
+
+	switch cfg.Codec {
+	case "gzip":
+		p.compressionCodec = gzip.NewCompressionCodec()
+	case "snappy":
+		p.compressionCodec = snappy.NewCompressionCodec()
+	default:
+		p.compressionCodec = nil
+	}
+
+	return p
 }
 
 func (p *segmentioSyncProducer) Send(key, value []byte) {
 
 	message := kafka.Message{Value: value, Key: key}
-	_, err := p.conn.WriteMessages(message)
+	_, err := p.conn.WriteCompressedMessages(p.compressionCodec, message)
 	if err != nil {
 		p.errCount++
 		log.Println(err)

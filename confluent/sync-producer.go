@@ -21,11 +21,16 @@ func NewConfluentProducer(cfg *types.SyncProducerConfig) *confluentProducer {
 		"broker.version.fallback": "2.1.0.0",
 		"session.timeout.ms":      6000,
 		"produce.offset.report":   true,
-		//"queue.buffering.max.messages": 1,
-		"default.topic.config": kafka.ConfigMap{"acks": cfg.Acks},
+		"default.topic.config":    kafka.ConfigMap{"acks": cfg.Acks},
 		//
 		"go.delivery.reports": true,
-		//"go.batch.producer":   true,
+	}
+
+	switch cfg.Codec {
+	case "gzip":
+		config["compression.codec"] = "gzip"
+	case "snappy":
+		config["compression.codec"] = "snappy"
 	}
 
 	p, err := kafka.NewProducer(&config)

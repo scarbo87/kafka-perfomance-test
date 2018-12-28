@@ -2,10 +2,10 @@ package segmentio
 
 import (
 	"context"
+	"github.com/scarbo87/kafka-go"
+	"github.com/scarbo87/kafka-go/gzip"
+	"github.com/scarbo87/kafka-go/snappy"
 	"github.com/scarbo87/kafka-perfomance-test/types"
-	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/gzip"
-	"github.com/segmentio/kafka-go/snappy"
 	"log"
 )
 
@@ -46,7 +46,8 @@ func NewSegmentioSyncProducer(cfg *types.SyncProducerConfig) *segmentioSyncProdu
 func (p *segmentioSyncProducer) Send(key, value []byte) {
 
 	message := kafka.Message{Value: value, Key: key}
-	_, err := p.conn.WriteCompressedMessages(p.compressionCodec, message)
+	_, parition, offset, timestamp, err := p.conn.WriteCompressedMessagesAt(p.compressionCodec, message)
+	log.Println(parition, offset, timestamp)
 	if err != nil {
 		p.errCount++
 		log.Println(err)

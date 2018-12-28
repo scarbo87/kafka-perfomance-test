@@ -1,7 +1,7 @@
 module github.com/scarbo87/kafka-perfomance-test
 
 require (
-	github.com/DataDog/zstd v1.3.4 // indirect
+	github.com/DataDog/zstd v1.3.5 // indirect
 	github.com/Shopify/sarama v1.20.0
 	github.com/Shopify/toxiproxy v2.1.3+incompatible // indirect
 	github.com/confluentinc/confluent-kafka-go v0.11.6
@@ -14,7 +14,8 @@ require (
 	github.com/montanaflynn/stats v0.0.0-20181214052348-945b007cb92f
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a // indirect
-	github.com/segmentio/kafka-go v0.2.2
+	github.com/scarbo87/kafka-go v0.2.3-0.20181228224429-ffcd4676c8d0
+	github.com/segmentio/kafka-go v0.2.2 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect

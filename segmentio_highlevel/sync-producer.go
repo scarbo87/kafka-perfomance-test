@@ -2,10 +2,10 @@ package segmentio_highlevel
 
 import (
 	"context"
+	"github.com/scarbo87/kafka-go"
+	"github.com/scarbo87/kafka-go/gzip"
+	"github.com/scarbo87/kafka-go/snappy"
 	"github.com/scarbo87/kafka-perfomance-test/types"
-	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/gzip"
-	"github.com/segmentio/kafka-go/snappy"
 	"log"
 )
 

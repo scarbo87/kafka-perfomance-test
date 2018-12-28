@@ -133,7 +133,7 @@ Report:
 func init() {
 	rootCmd.AddCommand(syncProducerCmd)
 
-	syncProducerCmd.Flags().StringVarP(&producerConfig.ProducerType, "client", "c", "sarama", "Available clients type: sarama|segmentio|segmentio-highlevel|confluent")
+	syncProducerCmd.Flags().StringVarP(&producerConfig.ProducerType, "client", "c", "segmentio", "Available clients type: sarama|segmentio|segmentio-highlevel|confluent")
 	syncProducerCmd.Flags().StringVarP(&producerConfig.Topic, "topic", "t", "example", "")
 	syncProducerCmd.Flags().StringVarP(&producerConfig.Codec, "codec", "", "snappy", "Enable compression: none|gzip|snappy")
 	syncProducerCmd.Flags().UintVarP(&producerConfig.DurationSecond, "duration", "d", 60, "Test time duration of sec")

@@ -10,13 +10,14 @@ type Producer interface {
 }
 
 type SyncProducerConfig struct {
-	Duration       time.Duration
-	DurationSecond uint
-	BrokersAddress []string
-	ProducerType   string
-	Topic          string
-	ValueSize      uint
-	KeySize        uint
-	Acks           int
-	Codec          string
+	Duration        time.Duration
+	DurationSecond  uint
+	BrokersAddress  []string
+	ProducerType    string
+	Topic           string
+	ValueSize       uint
+	KeySize         uint
+	Acks            int
+	Codec           string
+	NumberProducers uint
 }

@@ -17,5 +17,7 @@ require (
 	github.com/segmentio/kafka-go v0.2.2
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stretchr/testify v1.3.0 // indirect
+	go.uber.org/atomic v1.3.2
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect
 )

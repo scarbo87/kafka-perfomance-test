@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
-	"github.com/montanaflynn/stats"
+	"fmt"
 	"github.com/scarbo87/kafka-perfomance-test/confluent"
 	"github.com/scarbo87/kafka-perfomance-test/sarama"
 	"github.com/scarbo87/kafka-perfomance-test/segmentio"
@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -35,6 +36,7 @@ var syncProducerCmd = &cobra.Command{
 6) Value size: %d byte
 7) Key size: %d byte
 8) Acks: %d
+9) Number producers: %d
 `,
 			producerConfig.Duration,
 			producerConfig.ProducerType,
@@ -43,25 +45,36 @@ var syncProducerCmd = &cobra.Command{
 			producerConfig.ValueSize,
 			producerConfig.KeySize,
 			producerConfig.Acks,
+			producerConfig.NumberProducers,
 		)
 
-		var producer types.Producer
-		switch producerConfig.ProducerType {
-		case "sarama":
-			producer = sarama.NewSaramaSyncProducer(producerConfig)
-		case "segmentio":
-			producer = segmentio.NewSegmentioSyncProducer(producerConfig)
-		case "segmentio-writer":
-			producer = segmentio_highlevel.NewSegmentioSyncProducer(producerConfig)
-		case "confluent":
-			producer = confluent.NewConfluentProducer(producerConfig)
-		default:
-			log.Panicln("undefined producer type")
-		}
-		defer producer.Close()
+		wg := sync.WaitGroup{}
+		wg.Add(int(producerConfig.NumberProducers))
+		producers := make([]types.Producer, 0, producerConfig.NumberProducers)
+		for j := 0; j < int(producerConfig.NumberProducers); j++ {
+			var producer types.Producer
+			switch producerConfig.ProducerType {
+			case "sarama":
+				producer = sarama.NewSaramaSyncProducer(producerConfig)
+			case "segmentio":
+				producer = segmentio.NewSegmentioSyncProducer(producerConfig)
+			case "segmentio-writer":
+				producer = segmentio_highlevel.NewSegmentioSyncProducer(producerConfig)
+			case "confluent":
+				producer = confluent.NewConfluentProducer(producerConfig)
+			default:
+				log.Panicln("undefined producer type")
+			}
+			defer producer.Close()
 
-		// one test publish
-		producer.Send([]byte("ping"), []byte("ping"))
+			producers = append(producers, producer)
+			go func() {
+				defer wg.Done()
+				// one test publish
+				producer.Send([]byte("ping"), []byte("ping"))
+			}()
+		}
+		wg.Wait()
 
 		// graceful shutdown & context
 		signalChan := make(chan os.Signal, 1)
@@ -71,62 +84,74 @@ var syncProducerCmd = &cobra.Command{
 		defer cancel()
 
 		// stat ticker
-		ticker := time.NewTicker(time.Second * 1)
-		defer ticker.Stop()
-		metrics := make([]float64, 0, 1000)
-		go func() {
-			old := producer.GetTotalCount()
-			for range ticker.C {
-				metrics = append(metrics, float64(producer.GetTotalCount()-old))
-				old = producer.GetTotalCount()
-			}
-		}()
+		//ticker := time.NewTicker(time.Second * 1)
+		//defer ticker.Stop()
+		//metrics := make([]float64, 0, 1000)
+		//
+		//wg.Add(int(producerConfig.NumberProducers))
+		//for j := range producers {
+		//	go func(producer types.Producer) {
+		//		defer wg.Done()
+		//
+		//		old := producer.GetTotalCount()
+		//		for range ticker.C {
+		//			metrics = append(metrics, float64(producer.GetTotalCount()-old))
+		//			old = producer.GetTotalCount()
+		//		}
+		//	}(producers[j])
+		//}
+		//wg.Wait()
 
 		// start test
 		log.Println("Start test")
-		var i uint64
-		var value = make([]byte, producerConfig.ValueSize)
 		start := time.Now()
 
-		reportFunc := func() {
-			median, _ := stats.Percentile(metrics, 50)
-			percent1, _ := stats.PercentileNearestRank(metrics, 1)
-			percent99, _ := stats.PercentileNearestRank(metrics, 99)
+		go func() {
+			<-signalChan
+			signal.Stop(signalChan)
+			cancel()
+		}()
 
-			log.Printf(`End test
+		var value = make([]byte, producerConfig.ValueSize)
+		wg.Add(int(producerConfig.NumberProducers))
+		for j := range producers {
+			go func(ctx context.Context, producer types.Producer, pn int) {
+				defer wg.Done()
+
+				var i uint64
+				for {
+					select {
+					case <-ctx.Done():
+						fmt.Printf("Producer #%d stopped\n", pn)
+						return
+					default:
+						key := make([]byte, producerConfig.KeySize)
+						binary.LittleEndian.PutUint64(key, i)
+						producer.Send(key, value)
+						i++
+					}
+				}
+			}(ctx, producers[j], j)
+		}
+		wg.Wait()
+
+		var totalCount uint64
+		var totalErrors uint64
+		for j := range producers {
+			totalCount += producers[j].GetTotalCount()
+			totalErrors += producers[j].GetErrCount()
+		}
+
+		log.Printf(`End test
 Report:
 1) Test time: %s
 2) Total messages sent: %d
 3) Of them with an error: %d
-4) Median mes/sec: %f
-5) The worse (1 percentile) mes/sec: %f
-6) The best (99 percentile) mes/sec: %f
 `,
-				time.Now().Sub(start),
-				producer.GetTotalCount(),
-				producer.GetErrCount(),
-				median,
-				percent1,
-				percent99,
-			)
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				reportFunc()
-				return
-			case <-signalChan:
-				signal.Stop(signalChan)
-				reportFunc()
-				return
-			default:
-				key := make([]byte, producerConfig.KeySize)
-				binary.LittleEndian.PutUint64(key, i)
-				producer.Send(key, value)
-				i++
-			}
-		}
+			time.Now().Sub(start),
+			totalCount,
+			totalErrors,
+		)
 	},
 }
 
@@ -139,6 +164,7 @@ func init() {
 	syncProducerCmd.Flags().UintVarP(&producerConfig.DurationSecond, "duration", "d", 60, "Test time duration of sec")
 	syncProducerCmd.Flags().UintVarP(&producerConfig.ValueSize, "value-size", "", 100, "Message size in bytes")
 	syncProducerCmd.Flags().UintVarP(&producerConfig.KeySize, "key-size", "", 8, "Key size in bytes")
+	syncProducerCmd.Flags().UintVarP(&producerConfig.NumberProducers, "number-producers", "", 1, "Number of concurrent producers")
 	syncProducerCmd.Flags().IntVarP(&producerConfig.Acks, "acks", "a", -1, "Required Acks: -1, 0, 1")
 	syncProducerCmd.Flags().StringArrayVarP(&producerConfig.BrokersAddress, "brokers", "b", []string{":9092"}, "Brokers address: 127.0.0.1:9092")
 }

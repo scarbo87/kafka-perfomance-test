@@ -17,9 +17,9 @@ type segmentioSyncProducer struct {
 	errCount   uint64
 }
 
-func NewSegmentioSyncProducer(cfg *types.SyncProducerConfig) *segmentioSyncProducer {
+func NewSegmentioSyncProducer(cfg *types.SyncProducerConfig, partitionId int) *segmentioSyncProducer {
 
-	conn, err := kafka.DialLeader(context.Background(), "tcp", cfg.BrokersAddress[0], cfg.Topic, 0)
+	conn, err := kafka.DialLeader(context.Background(), "tcp", cfg.BrokersAddress[0], cfg.Topic, partitionId)
 	if err != nil {
 		log.Panicln(err)
 	}

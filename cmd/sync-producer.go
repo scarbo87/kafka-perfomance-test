@@ -37,6 +37,7 @@ var syncProducerCmd = &cobra.Command{
 7) Key size: %d byte
 8) Acks: %d
 9) Number producers: %d
+10) Count partitions: %d
 `,
 			producerConfig.Duration,
 			producerConfig.ProducerType,
@@ -46,18 +47,21 @@ var syncProducerCmd = &cobra.Command{
 			producerConfig.KeySize,
 			producerConfig.Acks,
 			producerConfig.NumberProducers,
+			producerConfig.CountPartitions,
 		)
 
 		wg := sync.WaitGroup{}
 		wg.Add(int(producerConfig.NumberProducers))
 		producers := make([]types.Producer, 0, producerConfig.NumberProducers)
+		k := 0
 		for j := 0; j < int(producerConfig.NumberProducers); j++ {
+
 			var producer types.Producer
 			switch producerConfig.ProducerType {
 			case "sarama":
 				producer = sarama.NewSaramaSyncProducer(producerConfig)
 			case "segmentio":
-				producer = segmentio.NewSegmentioSyncProducer(producerConfig)
+				producer = segmentio.NewSegmentioSyncProducer(producerConfig, k)
 			case "segmentio-writer":
 				producer = segmentio_highlevel.NewSegmentioSyncProducer(producerConfig)
 			case "confluent":
@@ -66,6 +70,11 @@ var syncProducerCmd = &cobra.Command{
 				log.Panicln("undefined producer type")
 			}
 			defer producer.Close()
+
+			if k >= int(producerConfig.CountPartitions)-1 {
+				k = 0
+			}
+			k++
 
 			producers = append(producers, producer)
 			go func() {
@@ -165,6 +174,7 @@ func init() {
 	syncProducerCmd.Flags().UintVarP(&producerConfig.ValueSize, "value-size", "", 100, "Message size in bytes")
 	syncProducerCmd.Flags().UintVarP(&producerConfig.KeySize, "key-size", "", 8, "Key size in bytes")
 	syncProducerCmd.Flags().UintVarP(&producerConfig.NumberProducers, "number-producers", "", 1, "Number of concurrent producers")
+	syncProducerCmd.Flags().UintVarP(&producerConfig.CountPartitions, "count-partitions", "", 1, "Count partitions of topic")
 	syncProducerCmd.Flags().IntVarP(&producerConfig.Acks, "acks", "a", -1, "Required Acks: -1, 0, 1")
 	syncProducerCmd.Flags().StringArrayVarP(&producerConfig.BrokersAddress, "brokers", "b", []string{":9092"}, "Brokers address: 127.0.0.1:9092")
 }

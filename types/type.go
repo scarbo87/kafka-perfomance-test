@@ -20,4 +20,5 @@ type SyncProducerConfig struct {
 	Acks            int
 	Codec           string
 	NumberProducers uint
+	CountPartitions uint
 }
